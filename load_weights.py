@@ -1,92 +1,135 @@
 import torch
+from transformers import GPT2LMHeadModel
 from model import GPTModel
-from config import GPTConfig, get_device
-import argparse
-import os
+import numpy as np
 
-def load_gpt2_weights(model, weights_path):
-    print(f"Loading weights from {weights_path}")
-    weights = torch.load(weights_path, map_location='cpu')
+def convert_gpt2_weights_to_custom(config):
+    """
+    load weights from pre-trained GPT-2 model into custom model architecture.
+    """
+    # loading pre-trained GPT-2 model
+    print("Loading pre-trained GPT-2 model...")
+    gpt2_model = GPT2LMHeadModel.from_pretrained('gpt2')
     
-    # load embeddings
-    model.tok_emb.weight.data.copy_(weights["embedding"]["token_embedding"])
-    model.pos_emb.weight.data.copy_(weights["embedding"]["position_embedding"])
+    # initialize
+    print("Initializing custom model...")
+    custom_model = GPTModel(config)
+    
+    # state dicts
+    gpt2_state_dict = gpt2_model.state_dict()
+    custom_state_dict = custom_model.state_dict()
+    
+    # new state dict for custom model
+    new_state_dict = {}
+    
+    # --------MAPPING---------
 
-    # Load transformer blocks
-    for i, block in enumerate(model.trf_blocks):
-        # Load attention weights
-        block.attn.W_query.weight.data.copy_(weights["blocks"][i]["attention"]["query"]["weight"])
-        block.attn.W_key.weight.data.copy_(weights["blocks"][i]["attention"]["key"]["weight"])
-        block.attn.W_value.weight.data.copy_(weights["blocks"][i]["attention"]["value"]["weight"])
+    # map token embeds
+    new_state_dict['tok_emb.weight'] = gpt2_state_dict['transformer.wte.weight']
+    
+    # map pos embeds
+    new_state_dict['pos_emb.weight'] = gpt2_state_dict['transformer.wpe.weight'][:config.context_length, :]
+    
+    # map transformer blocks
+    for i in range(config.n_layers):
+       
+        # attn weights
+        # split Q,K,V for our architecture
+        qkv_weight = gpt2_state_dict[f'transformer.h.{i}.attn.c_attn.weight']
+        qkv_bias = gpt2_state_dict[f'transformer.h.{i}.attn.c_attn.bias']
         
-        # Load bias if present in our model
-        if hasattr(block.attn.W_query, 'bias') and block.attn.W_query.bias is not None:
-            block.attn.W_query.bias.data.copy_(weights["blocks"][i]["attention"]["query"]["bias"])
-            block.attn.W_key.bias.data.copy_(weights["blocks"][i]["attention"]["key"]["bias"])
-            block.attn.W_value.bias.data.copy_(weights["blocks"][i]["attention"]["value"]["bias"])
+        # split the combined qkv
+
+        head_dim = config.emb_dim // config.n_heads
+        qkv_weight_chunks = qkv_weight.chunk(3, dim=1)
+        qkv_bias_chunks = qkv_bias.chunk(3, dim=0)
+
+        q_weight, k_weight, v_weight = qkv_weight_chunks
+        q_bias, k_bias, v_bias = qkv_bias_chunks
         
-        # Load output projection
-        block.attn.out_proj.weight.data.copy_(weights["blocks"][i]["attention"]["out_proj"]["weight"])
-        if hasattr(block.attn.out_proj, 'bias') and block.attn.out_proj.bias is not None:
-            block.attn.out_proj.bias.data.copy_(weights["blocks"][i]["attention"]["out_proj"]["bias"])
+        # map
+        new_state_dict[f'trf_blocks.{i}.attn.W_query.weight'] = q_weight
+        new_state_dict[f'trf_blocks.{i}.attn.W_key.weight'] = k_weight
+        new_state_dict[f'trf_blocks.{i}.attn.W_value.weight'] = v_weight
         
-        # Load layer norm weights
-        block.norm1.scale.data.copy_(weights["blocks"][i]["norm1"]["scale"])
-        block.norm1.shift.data.copy_(weights["blocks"][i]["norm1"]["shift"])
-        block.norm2.scale.data.copy_(weights["blocks"][i]["norm2"]["scale"])
-        block.norm2.shift.data.copy_(weights["blocks"][i]["norm2"]["shift"])
+        if config.qkv_bias:
+            new_state_dict[f'trf_blocks.{i}.attn.W_query.bias'] = q_bias
+            new_state_dict[f'trf_blocks.{i}.attn.W_key.bias'] = k_bias
+            new_state_dict[f'trf_blocks.{i}.attn.W_value.bias'] = v_bias
         
-        # Load FFN weights
-        block.ff.layers[0].weight.data.copy_(weights["blocks"][i]["ffn"]["fc1"]["weight"])
-        block.ff.layers[0].bias.data.copy_(weights["blocks"][i]["ffn"]["fc1"]["bias"])
-        block.ff.layers[2].weight.data.copy_(weights["blocks"][i]["ffn"]["fc2"]["weight"])
-        block.ff.layers[2].bias.data.copy_(weights["blocks"][i]["ffn"]["fc2"]["bias"])
+        # out proj
+        new_state_dict[f'trf_blocks.{i}.attn.out_proj.weight'] = gpt2_state_dict[f'transformer.h.{i}.attn.c_proj.weight']
+        new_state_dict[f'trf_blocks.{i}.attn.out_proj.bias'] = gpt2_state_dict[f'transformer.h.{i}.attn.c_proj.bias']
+        
+        # layer norms
+        new_state_dict[f'trf_blocks.{i}.norm1.scale'] = gpt2_state_dict[f'transformer.h.{i}.ln_1.weight']
+        new_state_dict[f'trf_blocks.{i}.norm1.shift'] = gpt2_state_dict[f'transformer.h.{i}.ln_1.bias']
+        new_state_dict[f'trf_blocks.{i}.norm2.scale'] = gpt2_state_dict[f'transformer.h.{i}.ln_2.weight']
+        new_state_dict[f'trf_blocks.{i}.norm2.shift'] = gpt2_state_dict[f'transformer.h.{i}.ln_2.bias']
+        
+        # ffn
+        new_state_dict[f'trf_blocks.{i}.ff.layers.0.weight'] = gpt2_state_dict[f'transformer.h.{i}.mlp.c_fc.weight'].t()
+        new_state_dict[f'trf_blocks.{i}.ff.layers.0.bias'] = gpt2_state_dict[f'transformer.h.{i}.mlp.c_fc.bias']
+        new_state_dict[f'trf_blocks.{i}.ff.layers.2.weight'] = gpt2_state_dict[f'transformer.h.{i}.mlp.c_proj.weight'].t()
+        new_state_dict[f'trf_blocks.{i}.ff.layers.2.bias'] = gpt2_state_dict[f'transformer.h.{i}.mlp.c_proj.bias']
     
-    # Load final layer norm
-    model.final_norm.scale.data.copy_(weights["final_norm"]["scale"])
-    model.final_norm.shift.data.copy_(weights["final_norm"]["shift"])
+    # final norm
+    new_state_dict['final_norm.scale'] = gpt2_state_dict['transformer.ln_f.weight']
+    new_state_dict['final_norm.shift'] = gpt2_state_dict['transformer.ln_f.bias']
     
-    # Load LM head
-    model.out_head.weight.data.copy_(weights["lm_head"])
+    # out
+    new_state_dict['out_head.weight'] = gpt2_state_dict['lm_head.weight']
     
-    print("Successfully loaded GPT-2 weights into custom model")
-    return model
+    # load weights into custom model
+    custom_model.load_state_dict(new_state_dict, strict=False)
+    
+    print("Weights successfully loaded into custom model.")
+    return custom_model
 
 
-def create_model_from_pretrained(weights_path=None, model_size='small'):
-
-    # If weights are provided, load the config from them
-    if weights_path and os.path.exists(weights_path):
-        config = GPTConfig.from_pretrained(weights_path)
-    else:
-        # Otherwise, use the specified config
-        config = GPTConfig.from_model_size(model_size)
-    
-    # Create the model
-    model = GPTModel(config)
-    
-    # Load weights if provided
-    if weights_path and os.path.exists(weights_path):
-        model = load_gpt2_weights(model, weights_path)
-    
-    return model
-
+# example
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Load GPT-2 weights into custom model")
-    parser.add_argument("--weights", type=str, default="gpt2_weights.pt", help="Path to extracted weights")
-    parser.add_argument("--model_size", type=str, default="small", help="Model size if not using weights")
-    parser.add_argument("--output", type=str, default=None, help="Path to save the loaded model (optional)")
+
+    from config import GPTConfig
+    from utils import text_to_token_ids, token_ids_to_text, generate
+    import tiktoken
+    import torch
     
-    args = parser.parse_args()
+    # config model to match gpt2 small config
+    config = GPTConfig(
+        vocab_size=50257,
+        context_length=1024,
+        emb_dim=768,
+        n_heads=12,
+        n_layers=12,
+        drop_rate=0.1,
+        qkv_bias=True
+    )
     
-    # Create model with pretrained weights
-    model = create_model_from_pretrained(args.weights, args.model_size)
-    model = model.to(get_device())
+    model = convert_gpt2_weights_to_custom(config)
+    print(model)
     
-    # Save the model if requested
-    if args.output:
-        os.makedirs(os.path.dirname(os.path.abspath(args.output)) or ".", exist_ok=True)
-        torch.save(model.state_dict(), args.output)
-        print(f"Model saved to {args.output}")
-    
-    print("Model loaded successfully")
+    tokenizer = tiktoken.get_encoding('gpt2')
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(device)
+
+    # test
+    # test_input = torch.randint(0, config.vocab_size, (1, 10))
+    # with torch.no_grad():
+    #     output = model(test_input)
+    # print(f"Output shape: {output.shape}")  # should be [1, 10, 50257]
+
+    # generate some text from the model given a start context
+    input_text = '1234'
+
+    token_ids = generate(
+        model = model,
+        idx = text_to_token_ids(input_text, tokenizer).to(device),
+        max_new_tokens =35,
+        context_size= config.context_length,
+        eos_id= 50256,
+        temp=3,
+        top_k=1)
+    generated_text =token_ids_to_text(token_ids, tokenizer)
+    print(generated_text)
