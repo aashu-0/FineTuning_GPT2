@@ -87,49 +87,49 @@ def convert_gpt2_weights_to_custom(config):
     return custom_model
 
 
-# example
-if __name__ == "__main__":
+# # example
+# if __name__ == "__main__":
 
-    from config import GPTConfig
-    from utils import text_to_token_ids, token_ids_to_text, generate
-    import tiktoken
-    import torch
+#     from config import GPTConfig
+#     from utils import text_to_token_ids, token_ids_to_text, generate
+#     import tiktoken
+#     import torch
     
-    # config model to match gpt2 small config
-    config = GPTConfig(
-        vocab_size=50257,
-        context_length=1024,
-        emb_dim=768,
-        n_heads=12,
-        n_layers=12,
-        drop_rate=0.1,
-        qkv_bias=True
-    )
+#     # config model to match gpt2 small config
+#     config = GPTConfig(
+#         vocab_size=50257,
+#         context_length=1024,
+#         emb_dim=768,
+#         n_heads=12,
+#         n_layers=12,
+#         drop_rate=0.1,
+#         qkv_bias=True
+#     )
     
-    model = convert_gpt2_weights_to_custom(config)
-    print(model)
+#     model = convert_gpt2_weights_to_custom(config)
+#     print(model)
     
-    tokenizer = tiktoken.get_encoding('gpt2')
+#     tokenizer = tiktoken.get_encoding('gpt2')
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(device)
+#     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+#     print(device)
 
-    # test
-    # test_input = torch.randint(0, config.vocab_size, (1, 10))
-    # with torch.no_grad():
-    #     output = model(test_input)
-    # print(f"Output shape: {output.shape}")  # should be [1, 10, 50257]
+#     # test
+#     # test_input = torch.randint(0, config.vocab_size, (1, 10))
+#     # with torch.no_grad():
+#     #     output = model(test_input)
+#     # print(f"Output shape: {output.shape}")  # should be [1, 10, 50257]
 
-    # generate some text from the model given a start context
-    input_text = '1234'
+#     # generate some text from the model given a start context
+#     input_text = '1234'
 
-    token_ids = generate(
-        model = model,
-        idx = text_to_token_ids(input_text, tokenizer).to(device),
-        max_new_tokens =35,
-        context_size= config.context_length,
-        eos_id= 50256,
-        temp=3,
-        top_k=1)
-    generated_text =token_ids_to_text(token_ids, tokenizer)
-    print(generated_text)
+#     token_ids = generate(
+#         model = model,
+#         idx = text_to_token_ids(input_text, tokenizer).to(device),
+#         max_new_tokens =35,
+#         context_size= config.context_length,
+#         eos_id= 50256,
+#         temp=3,
+#         top_k=1)
+#     generated_text =token_ids_to_text(token_ids, tokenizer)
+#     print(generated_text)
