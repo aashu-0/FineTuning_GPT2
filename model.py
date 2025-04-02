@@ -6,16 +6,18 @@ class GPTModel(nn.Module):
     def __init__(self, config):
         super().__init__()
 
-        self.tok_emb = nn.Embedding(config['vocab_size'], config['emb_dim'])
-        self.pos_emb = nn.Embedding(config['context_length'], config['emb_dim'])
-        self.drop_emb = nn.Dropout(config['drop_rate'])
+        self.config = config
+
+        self.tok_emb = nn.Embedding(config.vocab_size, config.emb_dim)
+        self.pos_emb = nn.Embedding(config.context_length, config.emb_dim)
+        self.drop_emb = nn.Dropout(config.drop_rate)
 
         self.trf_blocks = nn.ModuleList([
-            TransformerBlock(config) for _ in range(config['n_layers'])
+            TransformerBlock(config) for _ in range(config.n_layers)
         ])
         
-        self.final_norm = LayerNorm(config['emb_dim'])
-        self.out_head = nn.Linear(config['emb_dim'], config['vocab_size'], bias=False)
+        self.final_norm = LayerNorm(config.emb_dim)
+        self.out_head = nn.Linear(config.emb_dim, config.vocab_size, bias=False)
 
     
     def forward(self, input_ids):

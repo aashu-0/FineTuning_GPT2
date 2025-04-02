@@ -1,6 +1,6 @@
 import torch
 from model import GPTModel
-from config import get_gpt2_config, get_device
+from config import GPTConfig, get_device
 import argparse
 import os
 
@@ -57,11 +57,10 @@ def create_model_from_pretrained(weights_path=None, model_size='small'):
 
     # If weights are provided, load the config from them
     if weights_path and os.path.exists(weights_path):
-        weights = torch.load(weights_path, map_location='cpu')
-        config = weights["config"]
+        config = GPTConfig.from_pretrained(weights_path)
     else:
         # Otherwise, use the specified config
-        config = get_gpt2_config(model_size)
+        config = GPTConfig.from_model_size(model_size)
     
     # Create the model
     model = GPTModel(config)
