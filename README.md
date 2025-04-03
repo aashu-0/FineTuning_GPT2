@@ -1,11 +1,13 @@
-# gpt2-from-scratch
+# GPT-2: From Scratch & Fine-Tuning on Alpaca
 
-minimal implementation of gpt2 in pytorch. this code loads pretrained gpt2 weights and lets you generate text. doesn't reinvent the wheel, just shows how the architecture works under the hood.
+A minimal yet effective implementation of GPT-2 in PyTorch. This project loads pretrained GPT-2 weights and enables text generation while providing insights into the model’s underlying architecture.
+Add finetune soon!
 
-![GPT2 architecture](image.png)
-*architecture diagram of gpt2 model implemented in this repo. source: [image source](https://www.researchgate.net/figure/GPT-2-model-architecture-The-GPT-2-model-contains-N-Transformer-decoder-blocks-as-shown_fig1_373352176)*
+![GPT-2 Architecture](image.png)  
+*Source: [ResearchGate](https://www.researchgate.net/figure/GPT-2-model-architecture-The-GPT-2-model-contains-N-Transformer-decoder-blocks-as-shown_fig1_373352176)*
 
-## what's in the box
+
+## Files
 
 - `model.py`: core gpt2 model implementation
 - `MHA.py`: multi-head attention with flash attention for speed
@@ -66,7 +68,13 @@ output_ids = generate(
 print(token_ids_to_text(output_ids, tokenizer))
 ```
 
-## will add soon
+## soon
+- instruction fine-tuning gpt2 on Stanford alpaca dataset
+- implementing lora for efficient training
+- explore various optimization techniques. 
 
-- instruction fine-tuning on alpaca dataset
-- lora, and various optimization techniques.
+## acknowledgments and references
+
+- [Hugging Face's GPT-2 Implementation](https://huggingface.co/gpt2)
+- [Build a Large Language Model (From Scratch) Book](https://github.com/rasbt/LLMs-from-scratch)
+- [Andrej Karpathy’s Let's reproduce GPT-2 ](https://youtu.be/l8pRSuU81PU?si=vELvndsmquwRzyB9)
