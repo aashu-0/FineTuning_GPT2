@@ -6,7 +6,10 @@ class GPTConfig:
         emb_dim=768,
         n_heads=12,
         n_layers=12,
-        drop_rate=0.1,
+        dropout_emb=0.1,
+        dropout_attn = 0.1,
+        dropout_res=0.1,
+        layernorm_eps=1e-5,
         qkv_bias=True,
     ):
         self.vocab_size = vocab_size
@@ -14,5 +17,8 @@ class GPTConfig:
         self.emb_dim = emb_dim
         self.n_heads = n_heads
         self.n_layers = n_layers
-        self.drop_rate = drop_rate
+        self.dropout_emb = self.dropout_emb
+        self.dropout_res = self.dropout_res
+        self.dropout_attn = self.dropout_attn
+        self.layernorm_eps = self.layernorm_eps
         self.qkv_bias = qkv_bias
