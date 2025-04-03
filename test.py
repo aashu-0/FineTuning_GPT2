@@ -1,25 +1,15 @@
-from load_weights import convert_gpt2_weights_to_custom
+from load_weights import load_gpt2_weights_to_model
 import tiktoken
 import torch
 from utils import text_to_token_ids, token_ids_to_text, generate
-from config import GPTConfig
+from config import GPT2Config
 
 def test_generation():
-    # config to match gpt2 small
-
-    config = GPTConfig(
-        vocab_size=50257,
-        context_length=1024,
-        emb_dim=768,
-        n_heads=12,
-        n_layers=12,
-        drop_rate=0.1,
-        qkv_bias=True
-    )
+    config = GPT2Config()
     
     # load model with pretrained weights
-    print("Loading model with pre-trained weights...")
-    model = convert_gpt2_weights_to_custom(config)
+    print("Loading custom model with weights...")
+    model = load_gpt2_weights_to_model(config)
 
     tokenizer = tiktoken.get_encoding('gpt2')
 
