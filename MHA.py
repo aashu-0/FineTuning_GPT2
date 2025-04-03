@@ -1,64 +1,61 @@
 import torch
 import torch.nn as nn
 import math
+from config import GPT2Config
+import torch.nn.functional as F
 
-class MultiHeadAttention(nn.Module):
-    def __init__(self, d_in, d_out, context_length, dropout, num_heads, qkv_bias = False):
+
+# for attention -> using flash attention implementation by pytorch
+class CausalMultiHeadAttention(nn.Module):
+    def __init__(self, config: GPT2Config):
         super().__init__()
+        self.n_heads = config.n_heads
+        self.emb_dim = config.emb_dim
+        self.head_dim = self.emb_dim//self.n_heads
 
-        assert d_out % num_heads == 0
+        assert self.emb_dim % self.n_heads == 0
 
-        self.d_out = d_out
-        self.num_heads = num_heads
-        self.head_dim = d_out // num_heads
-
-        self.W_query = nn.Linear(d_in, d_out, bias=qkv_bias)
-        self.W_key = nn.Linear(d_in, d_out, bias=qkv_bias)
-        self.W_value = nn.Linear(d_in, d_out, bias=qkv_bias)
-
-        self.out_proj = nn.Linear(d_out, d_out)  # layer to combine head outputs
-        self.dropout = nn.Dropout(dropout)
-        self.register_buffer(
-            'mask', torch.triu(torch.ones(context_length, context_length), diagonal=1)
-        )
-
+        self.qkv = nn.Linear(self.emb_dim, 3*self.emb_dim)
+        self.out_proj = nn.Linear(self.emb_dim, self.emb_dim)  # layer to combine head outputs
+        self.attn_dropout_p = config.dropout_attn
+        self.res_dropout = nn.Dropout(config.dropout_res)
+        # self.register_buffer(
+        #     'mask', torch.triu(torch.ones(config.context_length, config.context_length), diagonal=1))
 
     def forward(self, x):
-        b, num_tokens, d_in = x.shape
+        b, num_tokens, c = x.size()
 
-        keys = self.W_key(x)
-        queries = self.W_query(x)
-        values = self.W_value(x)
+        qkv = self.qkv(x)
+        q,k,v = qkv.split(self.emb_dim, dim=2) # splits along 3rd dim
 
         # .view() -> to reshape tensors
-        # split d_out into num_heads, head_dim
-        # (b, num_tokens, d_out) -> (b, num_tokens, num_heads, head_dim)
+        # split d_out into n_heads, head_dim
+        # (b, num_tokens, c) -> (b, num_tokens, n_heads, head_dim)
+        # permute to convert (b, num_tokens, n_heads, head_dim) -> (b, n_heads, num_tokens, head_dim)
 
-        keys = keys.view(b, num_tokens, self.num_heads, self.head_dim)
-        queries = queries.view(b, num_tokens, self.num_heads, self.head_dim)
-        values = values.view(b, num_tokens, self.num_heads, self.head_dim)
+        k = k.view(b, num_tokens, self.n_heads, self.head_dim).permute(0,2,1,3)
+        q = q.view(b, num_tokens, self.n_heads, self.head_dim).permute(0,2,1,3)
+        v = v.view(b, num_tokens, self.n_heads, self.head_dim).permute(0,2,1,3)
 
-        # transpose from shape (b, num_tokens, num_heads, head_dim) -> (b, num_heads, num_tokens, head_dim)
+        # attn_scores = q @ k.transpose(2,3)
+        # mask_bool = self.mask.bool()[:num_tokens, :num_tokens]
+        # attn_scores.masked_fill_(mask_bool, -torch.inf)
+        # attn_weights = torch.softmax(attn_scores / math.sqrt(k.shape[-1]), dim = -1)
+        # attn_weights = self.dropout(attn_weights)
 
-        keys = keys.transpose(1,2)
-        queries = queries.transpose(1,2)
-        values = values.transpose(1,2)
-
-        # attn scores -> dot product of queries and keys for each head
-        attn_scores = queries @ keys.transpose(2,3)
-        mask_bool = self.mask.bool()[:num_tokens, :num_tokens]
-
-        attn_scores.masked_fill_(mask_bool, -torch.inf)
-
-        attn_weights = torch.softmax(attn_scores / math.sqrt(keys.shape[-1]), dim = -1)
-
-        attn_weights = self.dropout(attn_weights)
-
-        context_vec = (attn_weights @ values).transpose(1,2)
+        ## efficient flash attention
+        weights= F.scaled_dot_product_attention(
+            q,k,v,
+            is_causal=True, # for casual masking
+            dropout_p= self.attn_dropout_p if self.training else 0.0 #apply dropout to attn_wei only during training.
+        )
+        output = weights.transpose(1,2)
         # transposing makes tensor non-contiguous
 
-        # therefore before flattening into shape (b, num_tokens, self.d_out) make into contiguous 
-        context_vec = context_vec.contiguous().view(b, num_tokens, self.d_out)  # self.d_out = self.num_heads * self.head_dim
+        # therefore before flattening into shape (b, num_tokens, self.emb_dim) make into contiguous 
+        output = output.contiguous().view(b, num_tokens, self.emb_dim)  # self.emb_dim = self.n_heads * self.head_dim
 
-        context_vec = self.out_proj(context_vec)
-        return context_vec
+        output = self.out_proj(output)
+        # residual dropout
+        output = self.res_dropout(output)
+        return output
