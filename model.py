@@ -1,39 +1,69 @@
 import torch
 import torch.nn as nn
-from Transformer import TransformerBlock, LayerNorm
+from TransformerBlock import Block
+from config import GPT2Config
 
 class GPTModel(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config: GPT2Config, device='cpu'):
         super().__init__()
-
         self.config = config
 
         self.tok_emb = nn.Embedding(config.vocab_size, config.emb_dim)
+
         self.pos_emb = nn.Embedding(config.context_length, config.emb_dim)
-        self.drop_emb = nn.Dropout(config.drop_rate)
+        self.pos_ids = torch.arange(config.context_length).unsqueeze(0).to(device)
+
+        self.emb_dropout= nn.Dropout(config.dropout_emb)
+
 
         self.trf_blocks = nn.ModuleList([
-            TransformerBlock(config) for _ in range(config.n_layers)
+            Block(config) for _ in range(config.n_layers)
         ])
         
-        self.final_norm = LayerNorm(config.emb_dim)
+        self.final_norm = nn.LayerNorm(config.emb_dim)
+        # for gpt2 no bias
         self.out_head = nn.Linear(config.emb_dim, config.vocab_size, bias=False)
 
     
     def forward(self, input_ids):
-        batch_size, seq_len = input_ids.shape
-        tok_embs = self.tok_emb(input_ids)
+        _, current_seq_len = input_ids.size()
+        positions = self.pos_ids[:,:current_seq_len]
 
-        pos_ids = torch.arange(seq_len, device=input_ids.device)
-        pos_embs = self.pos_emb(pos_ids)
-
-        x = tok_embs + pos_embs
-        x = self.drop_emb(x)
+        x = self.tok_emb(input_ids) + self.pos_emb(positions)
+        x = self.emb_dropout(x)
 
         for block in self.trf_blocks:
             x = block(x)
 
         x = self.final_norm(x)
         logits = self.out_head(x)
-        
         return logits
+    
+
+if __name__ == "__main__":
+    from utils import text_to_token_ids, token_ids_to_text, generate
+    from config import GPT2Config
+    import torch
+    import tiktoken
+
+    tokenizer = tiktoken.get_encoding('gpt2')
+    config = GPT2Config()
+    gpt2 = GPTModel(config)
+    input_ids = text_to_token_ids('Hello too much buttering, sama', tokenizer)
+
+    out = gpt2(input_ids)
+    # print(out)
+    #print(out.size())
+    out_ids = generate(model=gpt2,
+                       idx=input_ids,
+                       max_new_tokens=35,
+                       context_size= config.context_length,
+                       eos_id= 50256,
+                       temp=0.7,
+                       top_k=4)
+    text = token_ids_to_text(out_ids, tokenizer)
+    print(text)
+
+    # Output got:
+    # Hello too much buttering, samaitemsQual Brilliant narfooted Ask thirstyzers alluded bytesrical Nish trucks MA amounts confess712akespequer Recall separatist
+    # conventionashionclientpleted uncomcaliber Δin subsequent coaxammefully advisorsmist

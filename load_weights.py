@@ -2,14 +2,12 @@ import torch
 from transformers import GPT2LMHeadModel
 from model import GPTModel
 import numpy as np
+from config import GPT2Config
 
-def convert_gpt2_weights_to_custom(config):
-    """
-    load weights from pre-trained GPT-2 model into custom model architecture.
-    """
+def load_gpt2_weights_to_model(config: GPT2Config):
     # loading pre-trained GPT-2 model
     print("Loading pre-trained GPT-2 model...")
-    gpt2_model = GPT2LMHeadModel.from_pretrained('gpt2')
+    gpt2_hf = GPT2LMHeadModel.from_pretrained('gpt2')
     
     # initialize
     print("Initializing custom model...")
