@@ -1,4 +1,4 @@
-class GPTConfig:
+class GPT2Config:
     def __init__(
         self,
         vocab_size=50257,  
