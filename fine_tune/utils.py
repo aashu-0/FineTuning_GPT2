@@ -2,7 +2,6 @@
 # there are various ways to format instruction entries, but we will stick with alpaca prompt style
 
 import random
-from fine_tune.dataset import download_dataset
 
 def format_input(entry):
     # extract components
@@ -30,9 +29,9 @@ def format_input(entry):
 
 
 if __name__ == '__main__':
+    from dataset import download_dataset
     url = "https://raw.githubusercontent.com/gururise/AlpacaDataCleaned/refs/heads/main/alpaca_data_cleaned.json"
     file_name = 'alpaca_data.json'
-
     full_dataset = full_dataset = download_dataset(url, file_name)
     example = full_dataset[random.randint(0,len(full_dataset))]
 

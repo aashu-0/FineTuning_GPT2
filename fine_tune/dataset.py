@@ -20,8 +20,8 @@ def download_dataset(url, file_name):
 
 
 # extract a subset from full dataset (optional)
-def load_subset(dataset, subset_file_name, subset_size):
-    random.seed(123)
+def load_subset(dataset, subset_file_name, subset_size, seed=123):
+    random.seed(seed)
     subset_data = random.sample(dataset, subset_size) # -> returns a list of dictionaries
 
     # list to json-formatted string
@@ -37,14 +37,20 @@ def load_subset(dataset, subset_file_name, subset_size):
 
 
 # train-test split
-def train_test_split(dataset, train_fraction, test_fraction):
-    train_set = int(len(dataset)*0.85)
-    test_set = int(len(dataset)*0.1)
-    val_test = len(dataset) - train_set -test_set
+def train_test_split(dataset, train_ratio=0.85, test_ratio=0.1, seed=123):
+    '''
+    returns train_data, test_data, val_data
+    '''
 
-    train_data = dataset[:train_set]
-    test_data = dataset[train_set: train_set+test_set]
-    val_data = dataset[train_set+test_set:]
+    random.seed(seed)
+
+    total_size = len(dataset)
+    train_size = int(total_size * train_ratio)
+    test_size = int(total_size * test_ratio)
+
+    train_data = dataset[:train_size]
+    test_data = dataset[train_size: train_size+test_size]
+    val_data = dataset[train_size+test_size: ]
 
     print(f'Train set size: {len(train_data)}')
     print(f'Test set size: {len(test_data)}')
@@ -78,7 +84,7 @@ class InstructionDataset(Dataset):
 #3. replace certain(all except first) <pad> tokens in target ids with -100 to exclude them from training loss
 
 def custom_collate_fn(batch, pad_token_id = 50256, ignore_index=-100,
-                      allowed_max_length= 512, device=torch.device()):
+                      allowed_max_length= 512, device='cpu'):
     
     # find the longest seq in the batch and then pads entire batch upto that length
     batch_max_length = max(len(item)+1 for item in batch)
@@ -114,12 +120,52 @@ def custom_collate_fn(batch, pad_token_id = 50256, ignore_index=-100,
     return inputs_tensor, targets_tensor
 
 
-# Dataloader class
-# ---------------------------
+# custom dataloader
+def create_dataloader(train_data, test_data, val_data,
+                      tokenizer, batch_size = 16,
+                      allowed_max_length =512, device= torch.device):
+    train_dataset = InstructionDataset(train_data, tokenizer)
+    test_dataset = InstructionDataset(test_data, tokenizer)
+    val_dataset = InstructionDataset(val_data, tokenizer)
+
+    # dataloaders
+    train_loader = DataLoader(train_dataset, batch_size=batch_size,
+                              shuffle=True, collate_fn=custom_collate_fn)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size,
+                              shuffle=False, collate_fn=custom_collate_fn)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size,
+                              shuffle=False, collate_fn=custom_collate_fn)
+    
+    return train_loader, test_loader, val_loader
+
 
 if __name__ == '__main__':
+    import tiktoken
+    from utils import format_input
+
+    seed =123
+    # from dataset import download_dataset, load_subset, train_test_split, create_dataloader
+
     url = "https://raw.githubusercontent.com/gururise/AlpacaDataCleaned/refs/heads/main/alpaca_data_cleaned.json"
     file_name = 'alpaca_data.json'
 
     full_dataset = download_dataset(url, file_name)
-    print(f'Random Example\n: {full_dataset[random.randint(0,len(full_dataset))]}')
+
+    sub_dataset = load_subset(full_dataset, 'subset_file.json', subset_size=3000, seed=seed)
+    print(f'Random Example\n: {sub_dataset[random.randint(0,len(sub_dataset))]}\n')
+
+    # split
+    train_data, test_data, val_data = train_test_split(sub_dataset,0.85,0.1,seed=seed)
+
+    tokenizer = tiktoken.get_encoding('gpt2')
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    # dataloaders
+    batch_size =8
+    train_loader, test_loader, val_loader = create_dataloader(
+        train_data, test_data, val_data, tokenizer, batch_size=batch_size, device=device
+    )
+
+    for idx, (X, y) in enumerate(train_loader):
+        print(f'Input Shape: {X.shape} | Target Shape: {y.shape}')
+        break
