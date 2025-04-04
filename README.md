@@ -3,7 +3,7 @@
 A minimal yet effective implementation of GPT-2 in PyTorch. This project loads pretrained GPT-2 weights and enables text generation while providing insights into the model’s underlying architecture.
 Add finetune soon!
 
-![GPT-2 Architecture](image.png)  
+![GPT-2 Architecture](assets/image.png)  
 *Source: [ResearchGate](https://www.researchgate.net/figure/GPT-2-model-architecture-The-GPT-2-model-contains-N-Transformer-decoder-blocks-as-shown_fig1_373352176)*
 
 

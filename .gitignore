@@ -4,6 +4,7 @@ __pycache__/
 
 aienv/
 venv/
+*.json
 *.log
 
 .DS_Store
