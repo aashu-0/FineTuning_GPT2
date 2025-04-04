@@ -20,19 +20,19 @@ def test_generation():
     test_cases = [
         {
             "prompt": "Once upon a time",
-            "max_tokens": 30,
+            "max_tokens": 50,
             "temperature": 0.7,
             "top_k": 40
         },
         {
             "prompt": "I want to learn about",
-            "max_tokens": 30,
+            "max_tokens": 50,
             "temperature": 0.8,
             "top_k": 50
         },
         {
             "prompt": "1234",
-            "max_tokens": 30,
+            "max_tokens": 50,
             "temperature": 0.9,
             "top_k": 40
         }

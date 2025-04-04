@@ -1,8 +1,9 @@
+import random
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
+
 # formatting input text
 # there are various ways to format instruction entries, but we will stick with alpaca prompt style
-
-import random
-
 def format_input(entry):
     # extract components
     instruction = entry.get('instruction', '')
@@ -28,6 +29,26 @@ def format_input(entry):
     return prompt
 
 
+# Plot Training and Validation losses
+def plot_losses(epochs_seen, tokens_seen, train_losses, val_losses):
+    fig, ax1 = plt.subplots(figsize =(5,3))
+    ax1.plot(epochs_seen, train_losses, label= 'Training Loss')
+    ax1.plot(epochs_seen, val_losses, linestyle ='-.', label = 'Validation Loss')
+
+    ax1.set_xlabel('Epochs')
+    ax1.set_ylabel('Loss')
+    ax1.legend(loc= 'upper right')
+
+    ax1.xaxis.set_major_locator(MaxNLocator(integer = True))
+    ax2 = ax1.twiny() # creates a twin x-axis (shared y-axis) for existing axis ax1
+
+    ax2.plot(tokens_seen, train_losses, alpha=0) # alpha = 0 -> invisible plot
+    ax2.set_xlabel('Tokens seen')
+    fig.tight_layout()
+    plt.show()
+
+
+# main
 if __name__ == '__main__':
     from dataset import download_dataset
     url = "https://raw.githubusercontent.com/gururise/AlpacaDataCleaned/refs/heads/main/alpaca_data_cleaned.json"
