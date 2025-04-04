@@ -1,4 +1,4 @@
-# GPT-2: From Scratch & Fine-Tuning on Alpaca
+# GPT-2: From Scratch & Fine-Tuning on Alpaca dataset
 
 A minimal yet effective implementation of GPT-2 in PyTorch. This project loads pretrained GPT-2 weights and enables text generation while providing insights into the model’s underlying architecture.
 It includes fine-tuning capabilities on the Stanford Alpaca dataset for instruction following. (not fine tuned yet)
