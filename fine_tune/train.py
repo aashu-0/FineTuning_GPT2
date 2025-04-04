@@ -144,7 +144,7 @@ def calc_loss_loader(dataloader, model, device, num_batches=None):
 # eval function for both train and val data
 def evaluate_model(model, train_loader, val_loader, device, eval_iter):
     # eval mode
-    eval.mode()
+    model.eval()
 
     with torch.no_grad():
         train_loss = calc_loss_loader(train_loader, model, device, num_batches=eval_iter)

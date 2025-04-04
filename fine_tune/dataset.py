@@ -84,7 +84,7 @@ class InstructionDataset(Dataset):
 #3. replace certain(all except first) <pad> tokens in target ids with -100 to exclude them from training loss
 
 def custom_collate_fn(batch, pad_token_id = 50256, ignore_index=-100,
-                      allowed_max_length= 512, device='cpu'):
+                      allowed_max_length= 512, device=None):
     
     # find the longest seq in the batch and then pads entire batch upto that length
     batch_max_length = max(len(item)+1 for item in batch)
@@ -115,26 +115,41 @@ def custom_collate_fn(batch, pad_token_id = 50256, ignore_index=-100,
         targets_lst.append(targets)
 
     # stack the tensors
-    inputs_tensor = torch.stack(inputs_lst).to(device)
-    targets_tensor = torch.stack(targets_lst).to(device)
+    inputs_tensor = torch.stack(inputs_lst)
+    targets_tensor = torch.stack(targets_lst)
+    
+    # move to device if specified
+    if device is not None:
+        inputs_tensor = inputs_tensor.to(device)
+        targets_tensor = targets_tensor.to(device)
     return inputs_tensor, targets_tensor
 
 
 # custom dataloader
 def create_dataloader(train_data, test_data, val_data,
                       tokenizer, batch_size = 16,
-                      allowed_max_length =512, device= torch.device):
+                      allowed_max_length =512, device= None):
     train_dataset = InstructionDataset(train_data, tokenizer)
     test_dataset = InstructionDataset(test_data, tokenizer)
     val_dataset = InstructionDataset(val_data, tokenizer)
 
+    # collate function with the correct device
+    def collate_with_device(batch):
+        return custom_collate_fn(
+            batch, 
+            pad_token_id=50256, 
+            ignore_index=-100,
+            allowed_max_length=allowed_max_length, 
+            device=device
+        )
+
     # dataloaders
     train_loader = DataLoader(train_dataset, batch_size=batch_size,
-                              shuffle=True, collate_fn=custom_collate_fn)
+                              shuffle=True, collate_fn=collate_with_device)
     test_loader = DataLoader(test_dataset, batch_size=batch_size,
-                              shuffle=False, collate_fn=custom_collate_fn)
+                              shuffle=False, collate_fn=collate_with_device)
     val_loader = DataLoader(val_dataset, batch_size=batch_size,
-                              shuffle=False, collate_fn=custom_collate_fn)
+                              shuffle=False, collate_fn=collate_with_device)
     
     return train_loader, test_loader, val_loader
 
