@@ -84,7 +84,7 @@ def train_model_with_samples(
         print(f"\nEpoch {epoch+1} completed with average loss: {avg_epoch_loss:.4f}")
 
         # generate text samples after each epoch
-        print(f"\n--- Generating {config.num_samples} text samples ---")
+        print(f"\n--- Generating text sample ---")
 
         generate_and_print_sample(model, tokenizer, device, start_context, config)
 
