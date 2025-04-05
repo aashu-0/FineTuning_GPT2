@@ -84,7 +84,7 @@ def train_model_with_samples(
                 token_ids = generate(model, idx=encoded,
                                     max_new_tokens=config.sample_length,
                                     context_size=config.context_length)
-                decoded_text = token_ids_to_text(token_ids, tokenizer)
+                decoded_text = token_ids_to_text(token_ids.cpu(), tokenizer)
                 print(f"Context: {config.start_context}")
                 print(f"Generated: {decoded_text}")
                 samples.append(decoded_text)
