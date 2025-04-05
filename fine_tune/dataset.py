@@ -65,7 +65,7 @@ class InstructionDataset(Dataset):
         self.encode_texts = []
         for entry in data:
             input_with_instruction = format_input(entry)
-            response_text = f'{entry['output']}'
+            response_text = f"{entry['output']}"
             full_text = input_with_instruction + response_text
 
             self.encode_texts.append(tokenizer.encode(full_text))
