@@ -14,10 +14,6 @@ def train_model_with_samples(
     wandb.init(project= config.wandb_project,
                entity= config.wandb_entity,
                config=vars(config))
-    
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-    optimizer = AdamW(model.parameters(), lr=config.learning_rate)
 
     train_losses, val_losses, track_tokens_seen =[],[],[]
     token_seen, global_step = 0,0
