@@ -100,9 +100,10 @@ def generate_and_print_sample(model, tokenizer, device, start_context, config: T
                             max_new_tokens=config.sample_length,
                             context_size=config.context_length)
         decoded_text = token_ids_to_text(token_ids.cpu(), tokenizer)
+        decoded_text = decoded_text.replace('\n', ' ')
 
         print(f"Context: {config.start_context}")
-        print(f"Generated: {decoded_text.replace('\n', ' ')}")
+        print(f"Generated: {decoded_text}")
     model.train()
 
 # loss calculation for a batch
