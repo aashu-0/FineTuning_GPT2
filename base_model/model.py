@@ -26,7 +26,7 @@ class GPTModel(nn.Module):
     
     def forward(self, input_ids, config: GPT2Config):
         _, current_seq_len = input_ids.size()
-        self.pos_ids = torch.arange(config.context_length, device= input_ids.device)
+        self.pos_ids = torch.arange(config.context_length, device= input_ids.device).unsqueeze(0)
         positions = self.pos_ids[:,:current_seq_len]
 
         x = self.tok_emb(input_ids) + self.pos_emb(positions)
