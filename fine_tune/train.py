@@ -10,9 +10,10 @@ def train_model_with_samples(
         model, train_dataloader, val_dataloader, optimizer,
         device, tokenizer, config: TrainingConfig):
     
+    model = model.to(device)
+    
     #init wandb
     wandb.init(project= config.wandb_project,
-               entity= config.wandb_entity,
                config=vars(config))
 
     train_losses, val_losses, track_tokens_seen =[],[],[]
@@ -32,8 +33,13 @@ def train_model_with_samples(
         for step, (input_batch, target_batch) in enumerate(train_dataloader):
             input_batch = input_batch.to(device)
             target_batch = target_batch.to(device)
-            loss = calc_loss_batch(input_batch, target_batch,
-                                   model, device)
+
+            #forward pass
+            logits = model(input_batch)
+
+            #loss
+            loss = calc_loss_batch(logits, target_batch,
+                                   device)
             norm_loss = loss /config.grad_accum_steps
             # backward pass
             norm_loss.backward()
@@ -104,12 +110,12 @@ def train_model_with_samples(
 
 
 # loss calculation for a batch
-def calc_loss_batch(input_batch, target_batch, model, device):
-    input_batch = input_batch.to(device) # shape [batch_size, seq_len]
-    target_batch = target_batch.to(device) # shape [batch_size, seq_len]
+def calc_loss_batch(logits, target_batch, device):
+    # input_batch = input_batch.to(device) # shape [batch_size, seq_len]
+    # target_batch = target_batch.to(device) # shape [batch_size, seq_len]
 
     #forward pass
-    logits = model(input_batch)
+    # logits = model(input_batch)
 
     # calculate cross entropy loss
     # reshape logits from [batch_size, seq_len, vocab_size] -> [batch_size*seq_len, vocab_size]
@@ -117,8 +123,7 @@ def calc_loss_batch(input_batch, target_batch, model, device):
 
     loss = F.cross_entropy(logits.view(-1, logits.size(-1)), target_batch.view(-1))
     # or
-    #loss = F.cross_entropy(logits.flatten(0, 1), target_batch.flatten()) # .view is perferred why? -> feel more standard 
-
+    #loss = F.cross_entropy(logits.flatten(0, 1), target_batch.flatten()) # .view is perferred why? -> feel more standard
     return loss
 
 
@@ -139,7 +144,14 @@ def calc_loss_loader(dataloader, model, device, num_batches=None):
     # accumulate losses over num_batches
     for i, (input_batch, target_batch) in enumerate(dataloader):
         if i < num_batches:
-            loss = calc_loss_batch(input_batch, target_batch, model, device)
+            #tensor
+            input_batch = input_batch.to(device)
+            target_batch = target_batch.to(device)
+
+            #forward
+            logits = model(input_batch)
+
+            loss = calc_loss_batch(logits, target_batch, device)
             total_loss +=loss.item()
         else:
             break
