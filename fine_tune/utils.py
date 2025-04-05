@@ -50,10 +50,10 @@ def plot_losses(epochs_seen, tokens_seen, train_losses, val_losses):
 
 # main
 if __name__ == '__main__':
-    from dataset import download_dataset
-    url = "https://raw.githubusercontent.com/gururise/AlpacaDataCleaned/refs/heads/main/alpaca_data_cleaned.json"
-    file_name = 'alpaca_data.json'
-    full_dataset = full_dataset = download_dataset(url, file_name)
+    from fine_tune.dataset import download_dataset
+    from fine_tune.config import TrainingConfig
+    config = TrainingConfig()
+    full_dataset = download_dataset(config)
     example = full_dataset[random.randint(0,len(full_dataset))]
 
     formatted_ex = format_input(example)

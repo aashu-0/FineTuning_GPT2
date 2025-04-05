@@ -1,8 +1,8 @@
 import torch
 from transformers import GPT2LMHeadModel
-from model import GPTModel
+from base_model.model import GPTModel
 import numpy as np
-from config import GPT2Config
+from base_model.config import GPT2Config
 
 def load_gpt2_weights_to_model(config: GPT2Config):
 
@@ -71,8 +71,7 @@ def load_gpt2_weights_to_model(config: GPT2Config):
 # example
 if __name__ == "__main__":
 
-    from config import GPT2Config
-    from utils import text_to_token_ids, token_ids_to_text, generate
+    from base_model.utils import text_to_token_ids, token_ids_to_text, generate
     import tiktoken
     import torch
     

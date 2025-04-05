@@ -1,8 +1,8 @@
-from load_weights import load_gpt2_weights_to_model
+from base_model.load_weights import load_gpt2_weights_to_model
 import tiktoken
 import torch
-from utils import text_to_token_ids, token_ids_to_text, generate
-from config import GPT2Config
+from base_model.utils import text_to_token_ids, token_ids_to_text, generate
+from base_model.config import GPT2Config
 
 def test_generation():
     config = GPT2Config()

@@ -1,76 +1,76 @@
 import torch
 import torch.nn.functional as F
+from torch.optim import AdamW
 from base_model.utils import text_to_token_ids, token_ids_to_text, generate
+import wandb
+from fine_tune.config import TrainingConfig
+
 
 def train_model_with_samples(
         model, train_dataloader, val_dataloader, optimizer,
-        device, n_epochs, eval_freq, eval_iter, start_context,
-        tokenizer,
-        context_size= 1024,
-        num_samples=3, sample_length=50, 
-        grad_accum_steps=4):
-    '''
-    args ->
-        model
-        train_dataloader
-        val_dataloader
-        optimizer
-        device
-        n_epochs
-        eval_freq: frequency (in steps) to evaluate model
-        eval_iter: number of batches to use for eval
-        start_context: starting text
-        context_size
-        tokenizer
-        num_samples=3: number of text samples to generate
-        sample_length=50
-        grad_accum_steps=4: number of steps to accumlate gradients
-        '''
+        device, tokenizer, config: TrainingConfig):
     
+    #init wandb
+    wandb.init(project= config.wandb_project,
+               entity= config.wandb_entity,
+               config=vars(config))
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+    optimizer = AdamW(model.parameters(), lr=config.learning_rate)
+
     train_losses, val_losses, track_tokens_seen =[],[],[]
     token_seen, global_step = 0,0
 
-    print(f'Training model for {n_epochs} epochs with gradient accumlation every {grad_accum_steps} steps')
+    print(f'Training model for {config.num_epochs} epochs with gradient accumlation every {config.grad_accum_steps} steps')
 
-    for epoch in range(n_epochs):
+    for epoch in range(config.num_epochs):
         model.train()
         epoch_loss =0
         accum_loss = 0
 
         print(f"\n{'='*50}")
-        print(f"Epoch {epoch+1}/{n_epochs}")
+        print(f"Epoch {epoch+1}/{config.num_epochs}")
         print(f"{'='*50}")
 
         for step, (input_batch, target_batch) in enumerate(train_dataloader):
             loss = calc_loss_batch(input_batch, target_batch,
                                    model, device)
-            norm_loss = loss /grad_accum_steps
+            norm_loss = loss /config.grad_accum_steps
             # backward pass
-            norm_loss.backward
+            norm_loss.backward()
 
             accum_loss += norm_loss.item()
             epoch_loss += norm_loss.item()
 
             # update params only after accumulating enough gradients
-            if (step+1)% grad_accum_steps ==0 or step ==len(train_dataloader)-1:
+            if (step+1)% config.grad_accum_steps ==0 or step ==len(train_dataloader)-1:
                 optimizer.step()
                 optimizer.zero_grad()
                 global_step +=1
 
                 # track token seen (actual batch_size* grad_accum_steps)
-                token_seen += input_batch.numel()* grad_accum_steps
+                token_seen += input_batch.numel()* config.grad_accum_steps
 
                 # eval step
-                if global_step % eval_freq ==0:
+                if global_step % config.eval_freq ==0:
                     train_loss, val_loss = evaluate_model(model, train_dataloader,
                                                           val_dataloader, device,
-                                                          eval_iter)
+                                                          config.eval_iter)
                     train_losses.append(train_loss)
-                    val_losses.append(val_losses)
+                    val_losses.append(val_loss)
                     track_tokens_seen.append(token_seen)
 
-                    print(f'Epoch: {epoch+1}/{n_epochs} | Step: {global_step:06d} | Tokens: {token_seen:,}')
+                    print(f'Epoch: {epoch+1}/{config.num_epochs} | Step: {global_step:06d} | Tokens: {token_seen:,}')
                     print(f'Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}')
+
+                    wandb.log({
+                        "train_loss": train_loss,
+                        "val_loss": val_loss,
+                        "tokens_seen": token_seen,
+                        "global_step": global_step,
+                        "epoch": epoch + 1
+                    })
 
                 accum_loss = 0
         # average epoch loss
@@ -78,22 +78,30 @@ def train_model_with_samples(
         print(f"\nEpoch {epoch+1} completed with average loss: {avg_epoch_loss:.4f}")
 
         # generate text samples after each epoch
-        print(f"\n--- Generating {num_samples} text samples ---")
+        print(f"\n--- Generating {config.num_samples} text samples ---")
         model.eval()
         with torch.no_grad():
-            for i in range(num_samples):
+            samples = []
+            for i in range(config.num_samples):
                 print(f"\nSample {i+1}:")
-                encoded = text_to_token_ids(start_context, tokenizer).to(device)
+                encoded = text_to_token_ids(config.start_context, tokenizer).to(device)
                 token_ids = generate(model, idx=encoded,
-                                    max_new_tokens=sample_length,
-                                    context_size=context_size)
+                                    max_new_tokens=config.sample_length,
+                                    context_size=config.context_length)
                 decoded_text = token_ids_to_text(token_ids, tokenizer)
-                print(f"Context: {start_context}")
+                print(f"Context: {config.start_context}")
                 print(f"Generated: {decoded_text}")
+                samples.append(decoded_text)
+
+            wandb.log({
+                "epoch": epoch + 1,
+                "samples": wandb.Html("\n".join([f"<p>Sample {i+1}: {s}</p>" for i, s in enumerate(samples)]))
+            })
 
         model.train() # back to training mode
 
-    print(f"\nTraining completed. Total steps: {global_step}, Total tokens seen: {tokens_seen:,}")
+    print(f"\nTraining completed. Total steps: {global_step}, Total tokens seen: {token_seen:,}")
+    wandb.finish()
     return train_losses, val_losses, track_tokens_seen
 
 
@@ -154,3 +162,6 @@ def evaluate_model(model, train_loader, val_loader, device, eval_iter):
     model.train()
 
     return train_loss, val_loss
+
+# if __name__ == '__main__':
+# -------------------------

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import math
-from config import GPT2Config
+from base_model.config import GPT2Config
 import torch.nn.functional as F
 
 

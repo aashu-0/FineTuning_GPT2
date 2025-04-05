@@ -37,18 +37,18 @@ pip install -r requirements.txt
 
 ```bash
 # Quick test with pretrained weights
-python base_model/test.py
+python -m base_model/test
 ```
 
-<!-- ## Fine-tuning on Alpaca Dataset
+## Fine-tuning on Alpaca Dataset
 
 ```bash
 # Download and prepare the dataset
-python fine_tune/dataset.py
+python -m fine_tune/dataset
 
-# Fine-tune the model
-python fine_tune/train.py
-``` -->
+# # Fine-tune the model
+# python fine_tune/train.py
+```
 
 ## how it works
 

@@ -1,18 +1,18 @@
 # instruction fine tuning our custom gpt2 on alpaca dataset from stanford
-
 import random
 import json
 import urllib.request
 import torch
 from torch.utils.data import Dataset, DataLoader
-from utils import format_input
+from fine_tune.utils import format_input
+from fine_tune.config import TrainingConfig
 
 # download the dataset
-def download_dataset(url, file_name):
-    urllib.request.urlretrieve(url, file_name)
+def download_dataset(config: TrainingConfig):
+    urllib.request.urlretrieve(config.url, config.file_name)
 
     # load
-    with open(file_name, 'r', encoding='utf-8') as f:
+    with open(config.file_name, 'r', encoding='utf-8') as f:
         dataset = json.load(f)
     print('Data Loaded Successfully')
     print(f'Number of entries in dataset: {len(dataset)}')
@@ -20,16 +20,16 @@ def download_dataset(url, file_name):
 
 
 # extract a subset from full dataset (optional)
-def load_subset(dataset, subset_file_name, subset_size, seed=123):
-    random.seed(seed)
-    subset_data = random.sample(dataset, subset_size) # -> returns a list of dictionaries
+def load_subset(dataset, config: TrainingConfig):
+    random.seed(config.seed)
+    subset_data = random.sample(dataset, config.subset_size) # -> returns a list of dictionaries
 
     # list to json-formatted string
-    with open(subset_file_name, 'w', encoding='utf-8') as f:
+    with open(config.subset_file_name, 'w', encoding='utf-8') as f:
         json.dump(subset_data, f, indent=4)
 
     # load
-    with open(subset_file_name, 'r', encoding='utf-8') as f:
+    with open(config.subset_file_name, 'r', encoding='utf-8') as f:
         subset_dataset = json.load(f)
     print('Subset Data loaded successfully')
     print(f'Number of entries in subset dataset: {len(subset_data)}')
@@ -37,16 +37,16 @@ def load_subset(dataset, subset_file_name, subset_size, seed=123):
 
 
 # train-test split
-def train_test_split(dataset, train_ratio=0.85, test_ratio=0.1, seed=123):
+def train_test_split(dataset, config: TrainingConfig):
     '''
     returns train_data, test_data, val_data
     '''
 
-    random.seed(seed)
+    random.seed(config.seed)
 
     total_size = len(dataset)
-    train_size = int(total_size * train_ratio)
-    test_size = int(total_size * test_ratio)
+    train_size = int(total_size * config.train_ratio)
+    test_size = int(total_size * config.test_ratio)
 
     train_data = dataset[:train_size]
     test_data = dataset[train_size: train_size+test_size]
@@ -83,8 +83,9 @@ class InstructionDataset(Dataset):
 #2. create target token ids (input ids shifted by 1)
 #3. replace certain(all except first) <pad> tokens in target ids with -100 to exclude them from training loss
 
-def custom_collate_fn(batch, pad_token_id = 50256, ignore_index=-100,
-                      allowed_max_length= 512, device=None):
+def custom_collate_fn(batch, config: TrainingConfig,
+                      pad_token_id = 50256, 
+                      ignore_index=-100, device = None):
     
     # find the longest seq in the batch and then pads entire batch upto that length
     batch_max_length = max(len(item)+1 for item in batch)
@@ -107,9 +108,9 @@ def custom_collate_fn(batch, pad_token_id = 50256, ignore_index=-100,
             targets[indices[1:]] = ignore_index
 
         # truncating the tensors to allowed max length is not None
-        if allowed_max_length is not None:
-            inputs = inputs[:allowed_max_length]
-            targets = targets[:allowed_max_length]
+        if config.allowed_max_length is not None:
+            inputs = inputs[:config.allowed_max_length]
+            targets = targets[:config.allowed_max_length]
 
         inputs_lst.append(inputs)
         targets_lst.append(targets)
@@ -127,8 +128,7 @@ def custom_collate_fn(batch, pad_token_id = 50256, ignore_index=-100,
 
 # custom dataloader
 def create_dataloader(train_data, test_data, val_data,
-                      tokenizer, batch_size = 16,
-                      allowed_max_length =512, device= None):
+                      tokenizer, config: TrainingConfig, device= None):
     train_dataset = InstructionDataset(train_data, tokenizer)
     test_dataset = InstructionDataset(test_data, tokenizer)
     val_dataset = InstructionDataset(val_data, tokenizer)
@@ -137,18 +137,18 @@ def create_dataloader(train_data, test_data, val_data,
     def collate_with_device(batch):
         return custom_collate_fn(
             batch, 
+            config,
             pad_token_id=50256, 
-            ignore_index=-100,
-            allowed_max_length=allowed_max_length, 
+            ignore_index=-100, 
             device=device
         )
 
     # dataloaders
-    train_loader = DataLoader(train_dataset, batch_size=batch_size,
+    train_loader = DataLoader(train_dataset, batch_size=config.batch_size,
                               shuffle=True, collate_fn=collate_with_device)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size,
+    test_loader = DataLoader(test_dataset, batch_size=config.batch_size,
                               shuffle=False, collate_fn=collate_with_device)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size,
+    val_loader = DataLoader(val_dataset, batch_size=config.batch_size,
                               shuffle=False, collate_fn=collate_with_device)
     
     return train_loader, test_loader, val_loader
@@ -156,29 +156,26 @@ def create_dataloader(train_data, test_data, val_data,
 
 if __name__ == '__main__':
     import tiktoken
-    from utils import format_input
 
-    seed =123
-    # from dataset import download_dataset, load_subset, train_test_split, create_dataloader
+    config = TrainingConfig()
 
-    url = "https://raw.githubusercontent.com/gururise/AlpacaDataCleaned/refs/heads/main/alpaca_data_cleaned.json"
-    file_name = 'alpaca_data.json'
+    full_dataset = download_dataset(config)
+    sub_dataset = load_subset(full_dataset, config)
+    example = sub_dataset[random.randint(0,len(sub_dataset))]
+    formatted_ex = format_input(example)
 
-    full_dataset = download_dataset(url, file_name)
-
-    sub_dataset = load_subset(full_dataset, 'subset_file.json', subset_size=3000, seed=seed)
-    print(f'Random Example\n: {sub_dataset[random.randint(0,len(sub_dataset))]}\n')
+    print(f'Random Example:\n{formatted_ex}\n')
 
     # split
-    train_data, test_data, val_data = train_test_split(sub_dataset,0.85,0.1,seed=seed)
+    train_data, test_data, val_data = train_test_split(sub_dataset,config)
 
     tokenizer = tiktoken.get_encoding('gpt2')
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    # dataloaders
-    batch_size =8
+
+    #dataloaders
     train_loader, test_loader, val_loader = create_dataloader(
-        train_data, test_data, val_data, tokenizer, batch_size=batch_size, device=device
+        train_data, test_data, val_data, tokenizer, config, device=device
     )
 
     for idx, (X, y) in enumerate(train_loader):

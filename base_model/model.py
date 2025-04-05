@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-from TransformerBlock import Block
-from config import GPT2Config
+from base_model.TransformerBlock import Block
+from base_model.config import GPT2Config
 
 class GPTModel(nn.Module):
     def __init__(self, config: GPT2Config, device='cpu'):
@@ -41,8 +41,7 @@ class GPTModel(nn.Module):
     
 
 if __name__ == "__main__":
-    from utils import text_to_token_ids, token_ids_to_text, generate
-    from config import GPT2Config
+    from base_model.utils import text_to_token_ids, token_ids_to_text, generate
     import torch
     import tiktoken
 

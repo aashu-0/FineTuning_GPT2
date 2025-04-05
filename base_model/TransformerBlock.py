@@ -1,7 +1,7 @@
-from MHA import CausalMultiHeadAttention
+from base_model.MHA import CausalMultiHeadAttention
 import torch
 import torch.nn as nn
-from config import GPT2Config
+from base_model.config import GPT2Config
 
 # MLP or feed forward network with gelu activations
 class MLP(nn.Module):
