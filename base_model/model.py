@@ -4,14 +4,13 @@ from base_model.TransformerBlock import Block
 from base_model.config import GPT2Config
 
 class GPTModel(nn.Module):
-    def __init__(self, config: GPT2Config, device='cpu'):
+    def __init__(self, config: GPT2Config):
         super().__init__()
         self.config = config
 
         self.tok_emb = nn.Embedding(config.vocab_size, config.emb_dim)
 
         self.pos_emb = nn.Embedding(config.context_length, config.emb_dim)
-        self.pos_ids = torch.arange(config.context_length).unsqueeze(0).to(device)
 
         self.emb_dropout= nn.Dropout(config.dropout_emb)
 
@@ -27,6 +26,7 @@ class GPTModel(nn.Module):
     
     def forward(self, input_ids):
         _, current_seq_len = input_ids.size()
+        self.pos_ids = torch.arange(config.context_length, device= input_ids.device)
         positions = self.pos_ids[:,:current_seq_len]
 
         x = self.tok_emb(input_ids) + self.pos_emb(positions)
