@@ -24,12 +24,11 @@ class GPTModel(nn.Module):
         self.out_head = nn.Linear(config.emb_dim, config.vocab_size, bias=False)
 
     
-    def forward(self, input_ids, config: GPT2Config):
+    def forward(self, input_ids):
         _, current_seq_len = input_ids.size()
-        self.pos_ids = torch.arange(config.context_length, device= input_ids.device).unsqueeze(0)
-        positions = self.pos_ids[:,:current_seq_len]
+        pos_embs = self.pos_emb(torch.arange(current_seq_len, device= input_ids.device))
 
-        x = self.tok_emb(input_ids) + self.pos_emb(positions)
+        x = self.tok_emb(input_ids) + pos_embs
         x = self.emb_dropout(x)
 
         for block in self.trf_blocks:
