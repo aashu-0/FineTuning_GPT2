@@ -5,8 +5,8 @@ class TrainingConfig:
     # training params
     num_epochs = 3
     grad_accum_steps =4
-    eval_freq = 100
-    eval_iter=10
+    eval_freq = 5
+    eval_iter=5
     learning_rate=5e-5
     
     # dataset params
@@ -21,9 +21,7 @@ class TrainingConfig:
     allowed_max_length =512
     
     # sampling params
-    start_context = "Write a short story"
     context_length =512
-    num_samples =3
     sample_length = 80
 
     # wandb params
