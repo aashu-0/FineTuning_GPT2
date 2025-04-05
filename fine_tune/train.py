@@ -30,6 +30,8 @@ def train_model_with_samples(
         print(f"{'='*50}")
 
         for step, (input_batch, target_batch) in enumerate(train_dataloader):
+            input_batch = input_batch.to(device)
+            target_batch = target_batch.to(device)
             loss = calc_loss_batch(input_batch, target_batch,
                                    model, device)
             norm_loss = loss /config.grad_accum_steps
