@@ -8,6 +8,7 @@ from fine_tune.config import TrainingConfig
 
 def train_model_with_samples(
         model, train_dataloader, val_dataloader, optimizer,
+        start_context,
         device, tokenizer, config: TrainingConfig):
     
     model = model.to(device)
@@ -77,37 +78,32 @@ def train_model_with_samples(
                     })
 
                 accum_loss = 0
+
         # average epoch loss
         avg_epoch_loss = epoch_loss/ len(train_dataloader)
         print(f"\nEpoch {epoch+1} completed with average loss: {avg_epoch_loss:.4f}")
 
         # generate text samples after each epoch
         print(f"\n--- Generating {config.num_samples} text samples ---")
-        model.eval()
-        with torch.no_grad():
-            samples = []
-            for i in range(config.num_samples):
-                print(f"\nSample {i+1}:")
-                encoded = text_to_token_ids(config.start_context, tokenizer).to(device)
-                token_ids = generate(model, idx=encoded,
-                                    max_new_tokens=config.sample_length,
-                                    context_size=config.context_length)
-                decoded_text = token_ids_to_text(token_ids.cpu(), tokenizer)
-                print(f"Context: {config.start_context}")
-                print(f"Generated: {decoded_text}")
-                samples.append(decoded_text)
 
-            wandb.log({
-                "epoch": epoch + 1,
-                "samples": wandb.Html("\n".join([f"<p>Sample {i+1}: {s}</p>" for i, s in enumerate(samples)]))
-            })
-
-        model.train() # back to training mode
+        generate_and_print_sample(model, tokenizer, device, start_context, config)
 
     print(f"\nTraining completed. Total steps: {global_step}, Total tokens seen: {token_seen:,}")
     wandb.finish()
     return train_losses, val_losses, track_tokens_seen
 
+def generate_and_print_sample(model, tokenizer, device, start_context, config: TrainingConfig):
+    model.eval()
+    encoded = text_to_token_ids(config.start_context, tokenizer).to(device)
+    with torch.no_grad():
+        token_ids = generate(model, idx=encoded,
+                            max_new_tokens=config.sample_length,
+                            context_size=config.context_length)
+        decoded_text = token_ids_to_text(token_ids.cpu(), tokenizer)
+
+        print(f"Context: {config.start_context}")
+        print(f"Generated: {decoded_text.replace('\n', ' ')}")
+    model.train()
 
 # loss calculation for a batch
 def calc_loss_batch(logits, target_batch, device):
