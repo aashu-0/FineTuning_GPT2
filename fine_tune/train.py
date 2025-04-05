@@ -94,7 +94,7 @@ def train_model_with_samples(
 
 def generate_and_print_sample(model, tokenizer, device, start_context, config: TrainingConfig):
     model.eval()
-    encoded = text_to_token_ids(config.start_context, tokenizer).to(device)
+    encoded = text_to_token_ids(start_context, tokenizer).to(device)
     with torch.no_grad():
         token_ids = generate(model, idx=encoded,
                             max_new_tokens=config.sample_length,
