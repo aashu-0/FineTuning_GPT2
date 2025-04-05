@@ -24,7 +24,7 @@ class GPTModel(nn.Module):
         self.out_head = nn.Linear(config.emb_dim, config.vocab_size, bias=False)
 
     
-    def forward(self, input_ids):
+    def forward(self, input_ids, config: GPT2Config):
         _, current_seq_len = input_ids.size()
         self.pos_ids = torch.arange(config.context_length, device= input_ids.device)
         positions = self.pos_ids[:,:current_seq_len]
