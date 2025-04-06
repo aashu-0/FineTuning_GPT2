@@ -7,7 +7,7 @@ from fine_tune.config import TrainingConfig
 
 def train_model_with_samples(
         model, train_dataloader, val_dataloader, optimizer,
-        start_context,
+        start_context,lr_scheduler,
         device, tokenizer, config: TrainingConfig):
 
     model = model.to(device)
@@ -50,6 +50,7 @@ def train_model_with_samples(
             # update params only after accumulating enough gradients
             if (step+1)% config.grad_accum_steps ==0 or step ==len(train_dataloader)-1:
                 optimizer.step()
+                lr_scheduler.step()
                 optimizer.zero_grad()
                 global_step +=1
 
@@ -102,9 +103,8 @@ def generate_and_print_sample(model, tokenizer, device, start_context, config: T
                              top_k=50)
         decoded_text = token_ids_to_text(token_ids.cpu(), tokenizer)
         decoded_text = decoded_text.replace('\n', ' ')
-
-        print(f"Context: {start_context}")
-        print(f"Generated: {decoded_text}")
+        
+        print(f"Output: {decoded_text}")
     model.train()
 
 # loss calculation for a batch
@@ -170,6 +170,3 @@ def evaluate_model(model, train_loader, val_loader, device, eval_iter):
     model.train()
 
     return train_loss, val_loss
-
-# if __name__ == '__main__':
-# -------------------------
