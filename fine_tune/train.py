@@ -1,6 +1,5 @@
 import torch
 import torch.nn.functional as F
-from torch.optim import AdamW
 from base_model.utils import text_to_token_ids, token_ids_to_text, generate
 import wandb
 from fine_tune.config import TrainingConfig
@@ -10,9 +9,9 @@ def train_model_with_samples(
         model, train_dataloader, val_dataloader, optimizer,
         start_context,
         device, tokenizer, config: TrainingConfig):
-    
+
     model = model.to(device)
-    
+
     #init wandb
     wandb.init(project= config.wandb_project,
                config=vars(config))
@@ -98,11 +97,13 @@ def generate_and_print_sample(model, tokenizer, device, start_context, config: T
     with torch.no_grad():
         token_ids = generate(model, idx=encoded,
                             max_new_tokens=config.sample_length,
-                            context_size=config.context_length)
+                            context_size=config.context_length,
+                             temp=0.7,
+                             top_k=50)
         decoded_text = token_ids_to_text(token_ids.cpu(), tokenizer)
         decoded_text = decoded_text.replace('\n', ' ')
 
-        print(f"Context: {config.start_context}")
+        print(f"Context: {start_context}")
         print(f"Generated: {decoded_text}")
     model.train()
 
@@ -131,7 +132,7 @@ def calc_loss_loader(dataloader, model, device, num_batches=None):
     # if empty dataloader
     if len(dataloader) ==0:
         return float('nan')
-    
+
     # num_batches
     if num_batches is None:
         num_batches = len(dataloader)
