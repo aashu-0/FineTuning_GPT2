@@ -170,3 +170,83 @@ def evaluate_model(model, train_loader, val_loader, device, eval_iter):
     model.train()
 
     return train_loss, val_loss
+
+if __name__ == '__main__':
+    import tiktoken
+    import torch
+    from torch.optim import AdamW
+    from torch.optim.lr_scheduler import CosineAnnealingLR
+    from base_model.load_weights import load_gpt2_weights_to_model
+    from base_model.config import GPT2Config
+    from fine_tune.config import TrainingConfig
+    from fine_tune.dataset import download_dataset, load_subset, train_test_split, create_dataloader
+    from transformers import get_scheduler
+
+    # Initialize configs
+    gpt2_config = GPT2Config()
+
+    train_config = TrainingConfig(
+    num_epochs =1,
+    grad_accum_steps=2,
+    batch_size=4,
+    wandb_project = 'fine_tuning_gpt2_alpaca3k',
+    subset_size =1000)
+    
+    # Set device
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {device}")
+    
+    # Load tokenizer
+    tokenizer = tiktoken.get_encoding('gpt2')
+    
+    # Load model with pretrained weights
+    model = load_gpt2_weights_to_model(gpt2_config)
+    model = model.to(device)
+    
+    # Download and prepare dataset
+    full_dataset = download_dataset(train_config)
+    subset_data = load_subset(full_dataset, train_config)
+    train_data, test_data, val_data = train_test_split(subset_data, train_config)
+    
+    # Create dataloaders
+    train_loader, test_loader, val_loader = create_dataloader(
+        train_data, test_data, val_data, tokenizer, train_config, device=device
+    )
+    
+    # Initialize optimizer and scheduler
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=0.00005,
+        weight_decay=0.1)
+    num_training_steps = train_config.num_epochs * len(train_loader)
+    lr_scheduler = get_scheduler(
+        name="cosine",
+        optimizer=optimizer,
+        num_warmup_steps=int(0.1 * num_training_steps),
+        num_training_steps=num_training_steps)
+    
+    # Sample prompt for generation during training
+    start_context = "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\nExplain the concept of deep learning in simple terms.\n\n### Response:\n"
+    
+    # Train the model
+    train_losses, val_losses, track_tokens_seen = train_model_with_samples(
+        model=model,
+        train_dataloader=train_loader,
+        val_dataloader=val_loader,
+        optimizer=optimizer,
+        lr_scheduler=lr_scheduler,
+        start_context=start_context,
+        device=device,
+        tokenizer=tokenizer,
+        config=train_config
+    )
+    
+    # Save the fine-tuned model
+    torch.save(model.state_dict(), "gpt2_finetuned.pt")
+    print("Fine-tuned model saved to 'gpt2_finetuned.pt'")
+    
+    # Plot training results
+    from fine_tune.utils import plot_losses
+    # Create epochs array (assuming eval_freq steps per epoch for plotting)
+    epochs = [i * train_config.eval_freq / (len(train_loader) / train_config.grad_accum_steps) for i in range(len(train_losses))]
+    plot_losses(epochs, track_tokens_seen, train_losses, val_losses)
