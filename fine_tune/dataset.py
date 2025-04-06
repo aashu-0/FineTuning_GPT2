@@ -46,11 +46,11 @@ def train_test_split(dataset, config: TrainingConfig):
 
     total_size = len(dataset)
     train_size = int(total_size * config.train_ratio)
-    test_size = int(total_size * config.test_ratio)
+    val_size = int(total_size * config.val_ratio)
 
     train_data = dataset[:train_size]
-    test_data = dataset[train_size: train_size+test_size]
-    val_data = dataset[train_size+test_size: ]
+    val_data = dataset[train_size: train_size+val_size]
+    test_data = dataset[train_size+val_size: ]
 
     print(f'Train set size: {len(train_data)}')
     print(f'Test set size: {len(test_data)}')

@@ -16,7 +16,7 @@ class TrainingConfig:
     subset_size =3000
     seed =1234
     train_ratio= 0.85
-    test_ratio=0.1
+    val_ratio=0.1
     batch_size =8
     allowed_max_length =512
     
