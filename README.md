@@ -154,11 +154,11 @@ print(token_ids_to_text(output_ids, tokenizer))
 ```
 
 ## soon
-- [x]instruction fine-tuning gpt2 on Stanford alpaca dataset
-- [ ]implementing lora for efficient training
-- [ ]evaluating fine-tuned model
-- [ ]explore various optimization techniques
-- [ ]model quantization for faster inference
+- [x] instruction fine-tuning gpt2 on Stanford alpaca dataset
+- [ ] implementing lora for efficient training
+- [ ] evaluating fine-tuned model
+- [ ] explore various optimization techniques
+- [ ] model quantization for faster inference
 
 ## acknowledgments and references
 
