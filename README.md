@@ -8,19 +8,20 @@ It includes fine-tuning capabilities on the Stanford Alpaca dataset for instruct
 
 ## File Info
 ### Base Model
-- `base_model/model.py`: Core GPT-2 model implementation
-- `base_model/MHA.py`: Multi-head attention with flash attention for speed
-- `base_model/TransformerBlock.py`: Transformer block implementation with pre-layernorm
-- `base_model/config.py`: Configuration settings matching gpt2-small (12 layers, 768 dim, 12 heads)
-- `base_model/load_weights.py`: Maps Hugging Face GPT-2 weights to this implementation
-- `base_model/utils.py`: Helper functions for tokenization and text generation
-- `base_model/test.py`: Test the model with different prompts
+- `model.py`: Core GPT-2 model implementation
+- `MHA.py`: Multi-head attention with flash attention for speed
+- `TransformerBlock.py`: Transformer block implementation with pre-layernorm
+- `config.py`: Configuration settings matching gpt2-small (12 layers, 768 dim, 12 heads)
+- `load_weights.py`: Maps Hugging Face GPT-2 weights to this implementation
+- `utils.py`: Helper functions for tokenization and text generation
+- `test.py`: Test the model with different prompts
 
 ### Fine-tuning
-- `fine_tune/dataset.py`: Dataset loading and processing for Stanford Alpaca
-- `fine_tune/train.py`: Training loop and evaluation functions
-- `fine_tune/utils.py`: Formatting functions for instruction data and visualization tools
-- `fine_tune/config.py`: Training configuration with hyperparameters and dataset settings
+- `dataset.py`: Dataset loading and processing for Stanford Alpaca
+- `train.py`: Training loop and evaluation functions
+- `utils.py`: Formatting functions for instruction data and visualization tools
+- `config.py`: Training configuration with hyperparameters and dataset settings
+<!-- - `evaluate.py`: Evaluation function to evaluate model responses using BERTScore -->
 
 ## TL;DR
 ### Base Model
@@ -78,7 +79,7 @@ This will run the model with several test prompts using different temperatures a
 python -m fine_tune.dataset
 
 # Fine-tune the model
-python fine_tune/train
+python -m fine_tune.train
 ```
 The training script will:
 
@@ -160,8 +161,12 @@ print(token_ids_to_text(output_ids, tokenizer))
 - [ ] explore various optimization techniques
 - [ ] model quantization for faster inference
 
+### note
+I'm still learning, so there might be some bugs or stuff I got wrong.
+
 ## acknowledgments and references
 
 - [Hugging Face's GPT-2 Implementation](https://huggingface.co/gpt2)
+- [Exploring GPT2 (Blog Post by Kapil Sharma) ](https://www.kapilsharma.dev/posts/exploring-gpt2/)
 - [Build a Large Language Model (From Scratch) Book](https://github.com/rasbt/LLMs-from-scratch)
 - [Andrej Karpathy’s Let's reproduce GPT-2 ](https://youtu.be/l8pRSuU81PU?si=vELvndsmquwRzyB9)

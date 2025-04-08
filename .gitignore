@@ -6,6 +6,7 @@ aienv/
 venv/
 *.json
 *.log
+*.pt
 
 .DS_Store
 .env
